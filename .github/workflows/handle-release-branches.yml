@@ -18,9 +18,18 @@ jobs:
       is-release-branch: ${{ startsWith(env.branch, 'release-') }}
       is-actionable-branch: ${{ env.branch == 'main' || env.branch == 'next' || startsWith(env.branch, 'release-') }}
   
+  handle-latest:
+    needs: branch-checks
+    if: ${{ needs.branch-checks.outputs.is-latest-branch == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - run: curl -X POST "https://api.netlify.com/build_hooks/$FRONTPAGE_HOOK"
+
   get-latest-release-branch:
     needs: branch-checks
-    if: ${{ needs.branch-checks.outputs.is-latest-branch == 'true' || needs.branch-checks.outputs.is-release-branch == 'true' }}
+    if: ${{ needs.branch-checks.outputs.is-release-branch == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -38,18 +47,6 @@ jobs:
           echo "latest-release-branch=$LATEST_RELEASE_BRANCH" >> $GITHUB_ENV
     outputs:
       branch: ${{ env.latest-release-branch }}
-  
-  create-latest-release-branch:
-    needs: [branch-checks, get-latest-release-branch]
-    if: ${{ needs.branch-checks.outputs.is-latest-branch == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - run: |
-          git branch temp
-          git push -f origin temp:${{ needs.get-latest-release-branch.outputs.branch }}
-    outputs:
-      branch: ${{ needs.get-latest-release-branch.outputs.branch }}
 
   get-next-release-branch:
     needs: branch-checks
@@ -79,6 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      
       - run: |
           git branch temp
           git push -f origin temp:${{ needs.get-next-release-branch.outputs.branch }}
